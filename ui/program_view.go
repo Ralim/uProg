@@ -43,7 +43,15 @@ func NewProgramView(parent *UI) *ProgramView {
 }
 
 func (v *ProgramView) keyPress(event *tcell.EventKey) *tcell.EventKey {
-
+	if v.running {
+		return nil // block input during running command for now
+	}
+	if event.Rune() == 'r' {
+		v.Run()
+	} else {
+		//On other keys we drop back to the uart view
+		v.parent.ShowUARTLog()
+	}
 	// Swallow the key press
 	return nil
 
@@ -55,20 +63,23 @@ func (v *ProgramView) Run() {
 func (v *ProgramView) runner() {
 	v.running = true
 	v.updateTitle()
+	v.view.Clear()
+	command := v.parent.config.ProgrammingCommand
+
+	_, _ = v.viewWriter.Write([]byte(fmt.Sprintf("Running programming command %s\r\n", command)))
 
 	// Spawn worker to run the programming process
-	cmd := exec.Command(v.parent.config.ProgrammingCommand[0], v.parent.config.ProgrammingCommand[1:]...)
+	cmd := exec.Command(command[0], command[1:]...)
 	cmd.Stdout = v.viewWriter
 	cmd.Stderr = v.viewWriter
 	err := cmd.Run()
 	v.running = false
 	v.updateTitle()
 	if err != nil {
-		_, _ = v.viewWriter.Write([]byte(fmt.Sprintf("Programmer exited with errorcode %v\r\n", err)))
+		_, _ = v.viewWriter.Write([]byte(fmt.Sprintf("Programmer exited with error %v\r\nPress r to retry, or any other key to exit.\r\n", err)))
 		//log.Fatalf("cmd.Run() failed with %s\n", err)
 	} else {
-		_, _ = v.viewWriter.Write([]byte("Programmer finished\r\n"))
-		v.parent.ShowUARTLog()
+		_, _ = v.viewWriter.Write([]byte("Programmer finished\r\nPress r to re-run, or any other key to exit.\n"))
 	}
 }
 
@@ -77,5 +88,5 @@ func (v *ProgramView) updateTitle() {
 	if v.running {
 		status = "Running"
 	}
-	v.view.SetTitle(fmt.Sprintf("Programming | %s", status))
+	v.view.SetTitle(fmt.Sprintf(" Programming | %s ", status))
 }
