@@ -35,7 +35,7 @@ func (u *UI) RunUI() {
 	u.app.EnableMouse(true)
 	u.ShowUARTLog()
 	u.UARTStreamView.OpenPort()
-	u.app.Run()
+	_ = u.app.Run()
 }
 
 func (u *UI) ShowUARTLog() {
